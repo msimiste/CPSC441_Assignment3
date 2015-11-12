@@ -44,6 +44,7 @@ public class ACKRecieve extends Thread {
 
 	public void terminate() {
 		terminated = true;
+		System.out.println("isteminated");
 	}
 
 
