@@ -1,22 +1,29 @@
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
-import java.util.Timer;
-
+/**
+ * 
+ * @author Mike Simister
+ * November 11, 2015
+ * This Class waits for UDP acks and upon receiving them, 
+ * initiates the sending of additional segments in the parent thread should they exist.
+ *
+ */
 public class ACKRecieve extends Thread {
 
 	private DatagramSocket udpSocket;
-	private int locPort;
-	private String serverName;
-	private TxQueue window;
 	private FastFtp parent;
 	private boolean terminated = false;
 
-	public ACKRecieve(DatagramSocket u, int l, String s, TxQueue w, FastFtp p) {
+	/**
+	 * Constructor for ACKRecieve class
+	 * @param u
+	 *        The UDP DatagramSocket	 * 
+	 * @param p
+	 *        The the FastFtp parent thread
+	 */
+	public ACKRecieve(DatagramSocket u, FastFtp p) {
 		udpSocket = u;
-		locPort = l;
-		serverName = s;
-		window = w;
 		parent = p;
 	}
 
@@ -28,7 +35,7 @@ public class ACKRecieve extends Thread {
 			try {
 				udpSocket.receive(recAck);
 				Segment tempSeg = new Segment(recAck);
-				System.out.println(tempSeg);
+				//System.out.println(tempSeg);
 				parent.processACK(tempSeg);
 			} catch (IOException e) {
 
@@ -37,14 +44,16 @@ public class ACKRecieve extends Thread {
 			} catch (InterruptedException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
-			}
-			//Thread.yield();
+			}			
 		}
 	}
 
+	/**
+	 * Method to toggle the terminate condition to true
+	 */
 	public void terminate() {
 		terminated = true;
-		System.out.println("isteminated");
+		//System.out.println("isteminated");
 	}
 
 

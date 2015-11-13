@@ -1,15 +1,27 @@
 import java.io.IOException;
-import java.util.Timer;
 import java.util.TimerTask;
 
-
+/**
+ * 
+ * @author Mike Simister
+ * November 11, 2015
+ * 
+ * This class handles a timeout, ie a timer task for the
+ * Timer. The Timer belongs to the parent thread FastFtp.
+ * Should a timeout occur, this thead calls a method in the
+ * parent thread in order to process the timeout.
+ *
+ */
 public class TimeoutHandler extends TimerTask {
 
-	private Timer timer;
 	private FastFtp parent;
 	
-	public TimeoutHandler(Timer t, FastFtp p){
-		timer = t;
+	/**
+	 * Constructor method
+	 * @param p
+	 *        The FastFtp parent thread.
+	 */
+	public TimeoutHandler(FastFtp p){
 		parent = p;
 		
 	}

@@ -4,10 +4,7 @@ import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.net.UnknownHostException;
-import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.PriorityQueue;
 import java.util.Timer;
 
 /**
@@ -28,10 +25,7 @@ public class FastFtp {
 	public TxQueue window;
 	private DatagramSocket udpSocket;
 	private InetAddress ipAddress;
-	private int serverPort;
 	private Timer time;
-	private TimeoutHandler timeHandler;
-
 	/**
 	 * Constructor to initialize the program
 	 * 
@@ -74,8 +68,6 @@ public class FastFtp {
 			outStream.writeUTF(fileName);
 
 			int count = 10; // used to verify TCP handshake
-			int i = 0;
-
 			count = inputStream.readByte(); // response from TCP server
 
 			if (count != 0) {
@@ -83,47 +75,20 @@ public class FastFtp {
 			}
 
 			else {
-
 				// Initializez the udpSocket
 				udpSocket = new DatagramSocket(locPort);
 
 				// get the ipAddress of the server
 				ipAddress = InetAddress.getByName(serverName);
 				window = new TxQueue(winSize);
+				
 				// start the recieveCK thread
-				ACKRecieve ackRec = new ACKRecieve(udpSocket, locPort,
-						serverName, window, this);
+				ACKRecieve ackRec = new ACKRecieve(udpSocket, this);
 				ackRec.start();
-
-				// turn the file into an ArrayList of segements
-				ArrayList<Segment> sendFile = Utils.fileToSegments(fileName);
-
-				// test writing the file
-
-				String testFile = "uctest.gif";
-				// concatenate the file path
-				String dir = System.getProperty("user.dir");
-				String separator = System.getProperty("file.separator");
-				String absPath = dir + separator;
-
-				// TODO remove the 5 lines of code below once testing is done
-				// used for testing purposes
-				File outFile = new File(absPath, testFile);
-				outFile.getParentFile().mkdirs();
-				outFile.createNewFile();
-				OutputStream out = new FileOutputStream(
-						outFile.getAbsoluteFile());
-				byte[] outBuf = new byte[1000];
-				// end of code to be removed
-				
-				File f = new File(fileName);
-				long fSize = f.length();
-				int numSegs = (int) ((fSize/1000)+1);
-				ArrayList<Segment> segments = new ArrayList<Segment>(numSegs);
+							
 				// read the file into a byte array
-				FileInputStream inFile;
-				
-				
+				File f = new File(fileName);
+				FileInputStream inFile;				
 				byte [] buf = new byte[Segment.MAX_PAYLOAD_SIZE];
 				int byteCount = 0;
 				int seqNum = 0;
@@ -136,58 +101,32 @@ public class FastFtp {
 						Segment tempSeg = new Segment(seqNum++,tempBuf);
 						while(window.isFull()){Thread.yield();}
 						processSend(tempSeg);
-						//segments.add(tempSeg);				
-					}		
-					
+					}							
 					inFile.close();
 					
 				} catch (FileNotFoundException e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
 				} 
-
-				/*while (sendFile.size() > 0) {
-					Segment tempSeg = new Segment();
-					tempSeg = sendFile.remove(0);
-					while (window.isFull()) {
-						// Thread.currentThread().wait();
-						Thread.yield();
-
-					}
-					// if(window.size()==winSize){Thread.currentThread().wait();}
-					processSend(tempSeg);
-					Thread.yield();
-					// TODO remove the 3 lines of code below, once testing is
-					// done
-					outBuf = tempSeg.getPayload();
-					out.write(outBuf);
-					out.flush();
-					// end file test
-				}*/
-				System.out.println("Has Ended");// Test Message
+				
+				//System.out.println("Has Ended");// Test Message
 
 				while (!(window.isEmpty())) {
 					Thread.yield();
 				}
-				time.cancel();
-				System.out.println("Window Empty");
-				
+				time.cancel();	
+				//terminate the Receive thread
 				ackRec.terminate();
 				ackRec.join(10);
 				
-				System.out.println("pastterminated");
-				
-				System.out.println("Joined");				
-				
-				System.out.println("Join");
-				outStream.writeByte(0);
-				
+				//close the TCP connections
+				outStream.writeByte(0);				
 				outStream.close();
 				inputStream.close();
-				udpSocket.close();
-				System.out.println("Ended");
 				
-
+				//close the UDP connection
+				udpSocket.close();
+				
 			}
 		} catch (UnknownHostException e) {
 			// TODO Auto-generated catch block
@@ -196,21 +135,41 @@ public class FastFtp {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-
 	}
 
+	/**
+	 * 
+	 * @return returns FastFtp's time interval
+	 */
 	public int getTimeInterval() {
 		return timeInterval;
 	}
 
+	/**
+	 * 
+	 * @return - returns FastFtp's timer 
+	 *      
+	 */
 	public Timer getTimer() {
 		return time;
 	}
 
+	/**
+	 * Sets the global timer object
+	 * @param t
+	 *       the new Timer
+	 */
 	public void setTimer(Timer t) {
 		time = t;
 	}
 
+    /**
+     * Sends a segment through the UDP protocol to a server
+     * @param seg
+     *        the segment to be sent
+     * @throws InterruptedException
+     * @throws IOException
+     */
 	public synchronized void processSend(Segment seg)
 			throws InterruptedException, IOException {
 		// send seg to the UDP socket
@@ -219,74 +178,73 @@ public class FastFtp {
 		udpSocket.send(new DatagramPacket(bytes, bytes.length, ipAddress,
 				tcpSocket.getPort()));
 
-		// add seg to the trnsmission queue txQueue
+		// add seg to the transmission queue txQueue
 		window.add(seg);
 
 		// if txQueue.size() == 1, start timer
 		if (window.size() == 1) {
-			System.out.println("Start timer");
+			//System.out.println("Start timer");
 			time = new Timer();
-			time.schedule(new TimeoutHandler(time, this), timeInterval);
+			time.schedule(new TimeoutHandler(this), timeInterval);
 		}
 	}
-
+	
+    /**
+     * @param ack
+     * @throws InterruptedException
+     */
 	public synchronized void processACK(Segment ack)
 			throws InterruptedException {
 		int size = window.toArray().length;
-		System.out.println("WIndow Size: " +size);
+		//System.out.println("WIndow Size: " +size);
 		
 		if (size > 0) {
 			//System.out.println("First Sequence #: " + window.element().getSeqNum());
 			Segment[] arr = window.toArray();
 			int startSeg = arr[0].getSeqNum();
 			int endSeg = arr[arr.length - 1].getSeqNum();
-			System.out.println("First Sequence #: " + startSeg);
-			System.out.println("Last Sequence #: " + endSeg);
+			//System.out.println("First Sequence #: " + startSeg);
+			//System.out.println("Last Sequence #: " + endSeg);
 			
 			int currentSeg = ack.getSeqNum();
-			System.out.println("Current ack: " + currentSeg );
+			//System.out.println("Current ack: " + currentSeg );
 			if ((currentSeg >= startSeg) && (currentSeg <= endSeg + 1)) {
 				time.cancel();
 
 				while ((window.element() != null)
 						&& (window.element().getSeqNum() < ack.getSeqNum())) {
-					System.out.println("removing");
-
+					//System.out.println("removing");
 					window.remove();
 				}
-				System.out.println("testy");
+				//System.out.println("testy");
 				if (!(window.isEmpty())) {
 					
 					time = new Timer();
-					time.schedule(new TimeoutHandler(getTimer(), this),
+					time.schedule(new TimeoutHandler(this),
 							timeInterval);
 				}
 			}
 		}
-		else{return;}
+		//else{return;}
 	}
-
-	// while txQueue . element ( ) . getSeqNum( ) < ack.getSeqNum( )
-	// txQueue . remove ( )
-	// i f not txQueue . isEmpty ( ) , start the timer
 
 	public synchronized void processTimeout() throws IOException {
 		// get the list of all pending segments by calling txQueue.toArray ( )
 		Segment[] remainingSegs = window.toArray();
-		System.out.println("Timeout Occured");
+		//System.out.println("Timeout Occured");
+		
 		// go through the list and send all segments to the UDP socket
 		for (int i = 0; i < remainingSegs.length; i++) {
 			Segment seg = remainingSegs[i];
-			byte[] bytes = seg.getBytes();
-			
+			byte[] bytes = seg.getBytes();			
 			udpSocket.send(new DatagramPacket(seg.getBytes(), bytes.length,
-					ipAddress, tcpSocket.getPort()));
-			
+					ipAddress, tcpSocket.getPort()));			
 		}
+		
 		// if not txQueue . isEmpty ( ) , start the timer
 		if (!(window.isEmpty())) {
 			 time = new Timer();
-			time.schedule(new TimeoutHandler(time, this), timeInterval);
+			time.schedule(new TimeoutHandler(this), timeInterval);
 		}
 	}
 
@@ -298,7 +256,7 @@ public class FastFtp {
 	 */
 	public static void main(String[] args) throws InterruptedException {
 		int windowSize = 10; // segments
-		int timeout = 100; // milli-seconds
+		int timeout = 10; // milli-seconds
 
 		String serverName = "localhost";
 		String fileName = "";
