@@ -8,6 +8,7 @@ import java.net.DatagramSocket;
  * This Class waits for UDP acks and upon receiving them, 
  * initiates the sending of additional segments in the parent thread should they exist.
  *
+ * Some print statements were intentionally left  as comments in the event that further testing is required
  */
 public class ACKRecieve extends Thread {
 

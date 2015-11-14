@@ -11,6 +11,7 @@ import java.util.TimerTask;
  * Should a timeout occur, this thead calls a method in the
  * parent thread in order to process the timeout.
  *
+ * Some print statements were intentionally left  as comments in the event that further testing is required
  */
 public class TimeoutHandler extends TimerTask {
 

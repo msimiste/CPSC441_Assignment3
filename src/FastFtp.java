@@ -14,6 +14,7 @@ import java.util.Timer;
  * The main mehtod is send() which takes a file name as input argument and send
  * the file to the specified destination host.
  * 
+ * Some print statements were intentionally left  as comments in the event that further testing is required
  */
 public class FastFtp {
 
@@ -26,6 +27,7 @@ public class FastFtp {
 	private DatagramSocket udpSocket;
 	private InetAddress ipAddress;
 	private Timer time;
+	
 	/**
 	 * Constructor to initialize the program
 	 * 
@@ -190,6 +192,7 @@ public class FastFtp {
 	}
 	
     /**
+     * Method processes a segment
      * @param ack
      * @throws InterruptedException
      */
@@ -228,6 +231,11 @@ public class FastFtp {
 		//else{return;}
 	}
 
+	/**
+	 * Method to handle a timeout, if a timeout occurs this method will
+	 * re-send all segments that remain in a the window
+	 * @throws IOException
+	 */
 	public synchronized void processTimeout() throws IOException {
 		// get the list of all pending segments by calling txQueue.toArray ( )
 		Segment[] remainingSegs = window.toArray();
